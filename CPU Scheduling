@@ -1,0 +1,185 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+#define MAX 100
+
+typedef struct {
+    int pid;
+    int bt;  // Burst time
+    int at;  // Arrival time
+    int prio; // Priority
+    int ct;  // Completion time
+    int wt;  // Waiting time
+    int tat; // Turnaround time
+    int remaining; // For RR
+    int completed;
+} Process;
+
+void inputProcesses(Process p[], int *n, int isPriority) {
+    printf("Enter number of processes: ");
+    scanf("%d", n);
+
+    for (int i = 0; i < *n; i++) {
+        p[i].pid = i + 1;
+        printf("Enter Burst Time and Arrival Time for P%d: ", p[i].pid);
+        scanf("%d %d", &p[i].bt, &p[i].at);
+        if (isPriority) {
+            printf("Enter Priority for P%d: ", p[i].pid);
+            scanf("%d", &p[i].prio);
+        }
+        p[i].remaining = p[i].bt;
+        p[i].completed = 0;
+    }
+}
+
+void calculateTimes(Process p[], int n) {
+    for (int i = 0; i < n; i++) {
+        p[i].tat = p[i].ct - p[i].at;
+        p[i].wt = p[i].tat - p[i].bt;
+    }
+}
+
+void display(Process p[], int n) {
+    float avgWT = 0, avgTAT = 0;
+    printf("\nPID\tBT\tAT\tCT\tTAT\tWT\n");
+    for (int i = 0; i < n; i++) {
+        printf("P%d\t%d\t%d\t%d\t%d\t%d\n", p[i].pid, p[i].bt, p[i].at, p[i].ct, p[i].tat, p[i].wt);
+        avgWT += p[i].wt;
+        avgTAT += p[i].tat;
+    }
+    printf("Average Waiting Time = %.2f\n", avgWT / n);
+    printf("Average Turnaround Time = %.2f\n", avgTAT / n);
+}
+
+// a) FCFS
+void fcfs(Process p[], int n) {
+    Process temp[MAX];
+    for (int i = 0; i < n; i++) temp[i] = p[i];
+
+    // Sort by arrival time
+    for (int i = 0; i < n-1; i++)
+        for (int j = i+1; j < n; j++)
+            if (temp[i].at > temp[j].at)
+                { Process t = temp[i]; temp[i] = temp[j]; temp[j] = t; }
+
+    int time = 0;
+    for (int i = 0; i < n; i++) {
+        if (time < temp[i].at)
+            time = temp[i].at;
+        time += temp[i].bt;
+        temp[i].ct = time;
+    }
+
+    calculateTimes(temp, n);
+    printf("\n--- FCFS Scheduling ---");
+    display(temp, n);
+}
+
+// b) SJF (Non-preemptive)
+void sjf(Process p[], int n) {
+    Process temp[MAX];
+    for (int i = 0; i < n; i++) temp[i] = p[i];
+
+    int time = 0, completed = 0;
+    while (completed < n) {
+        int idx = -1, minBT = 9999;
+        for (int i = 0; i < n; i++) {
+            if (!temp[i].completed && temp[i].at <= time && temp[i].bt < minBT) {
+                minBT = temp[i].bt;
+                idx = i;
+            }
+        }
+        if (idx != -1) {
+            time += temp[idx].bt;
+            temp[idx].ct = time;
+            temp[idx].completed = 1;
+            completed++;
+        } else {
+            time++;
+        }
+    }
+
+    calculateTimes(temp, n);
+    printf("\n--- SJF Scheduling ---");
+    display(temp, n);
+}
+
+// c) Priority (Non-preemptive)
+void priority(Process p[], int n) {
+    Process temp[MAX];
+    for (int i = 0; i < n; i++) temp[i] = p[i];
+
+    int time = 0, completed = 0;
+    while (completed < n) {
+        int idx = -1, highest = 9999;
+        for (int i = 0; i < n; i++) {
+            if (!temp[i].completed && temp[i].at <= time && temp[i].prio < highest) {
+                highest = temp[i].prio;
+                idx = i;
+            }
+        }
+        if (idx != -1) {
+            time += temp[idx].bt;
+            temp[idx].ct = time;
+            temp[idx].completed = 1;
+            completed++;
+        } else {
+            time++;
+        }
+    }
+
+    calculateTimes(temp, n);
+    printf("\n--- Priority Scheduling ---");
+    display(temp, n);
+}
+
+// d) Round Robin
+void roundRobin(Process p[], int n, int q) {
+    Process temp[MAX];
+    for (int i = 0; i < n; i++) temp[i] = p[i];
+
+    int time = 0, completed = 0;
+    while (completed < n) {
+        int executed = 0;
+        for (int i = 0; i < n; i++) {
+            if (temp[i].at <= time && temp[i].remaining > 0) {
+                executed = 1;
+                if (temp[i].remaining > q) {
+                    time += q;
+                    temp[i].remaining -= q;
+                } else {
+                    time += temp[i].remaining;
+                    temp[i].remaining = 0;
+                    temp[i].ct = time;
+                    completed++;
+                }
+            }
+        }
+        if (!executed)
+            time++;
+    }
+
+    calculateTimes(temp, n);
+    printf("\n--- Round Robin Scheduling (q = %d) ---", q);
+    display(temp, n);
+}
+
+// Main menu
+int main() {
+    Process p[MAX];
+    int n;
+
+    printf("CPU Scheduling Simulation:\n");
+    inputProcesses(p, &n, 1);
+
+    fcfs(p, n);
+    sjf(p, n);
+    priority(p, n);
+
+    int quantum;
+    printf("\nEnter Quantum Time for Round Robin: ");
+    scanf("%d", &quantum);
+    roundRobin(p, n, quantum);
+
+    return 0;
+}
