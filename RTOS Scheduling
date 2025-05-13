@@ -1,0 +1,148 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+#define MAX_TASKS 10
+#define MAX_TIME 100
+
+typedef struct {
+    int id;
+    int period;
+    int execution_time;
+    int remaining_time;
+    int deadline;
+    int next_release;
+    float weight; // For Proportional Share
+} Task;
+
+void sort_by_period(Task tasks[], int n) {
+    for (int i = 0; i < n-1; i++)
+        for (int j = i+1; j < n; j++)
+            if (tasks[i].period > tasks[j].period) {
+                Task temp = tasks[i];
+                tasks[i] = tasks[j];
+                tasks[j] = temp;
+            }
+}
+
+void sort_by_deadline(Task tasks[], int n) {
+    for (int i = 0; i < n-1; i++)
+        for (int j = i+1; j < n; j++)
+            if (tasks[i].deadline > tasks[j].deadline) {
+                Task temp = tasks[i];
+                tasks[i] = tasks[j];
+                tasks[j] = temp;
+            }
+}
+
+void rate_monotonic(Task tasks[], int n, int simulation_time) {
+    printf("\n--- Rate Monotonic Scheduling ---\n");
+    sort_by_period(tasks, n);
+    for (int i = 0; i < n; i++) {
+        tasks[i].next_release = 0;
+        tasks[i].remaining_time = 0;
+    }
+
+    for (int t = 0; t < simulation_time; t++) {
+        for (int i = 0; i < n; i++) {
+            if (t == tasks[i].next_release) {
+                tasks[i].remaining_time = tasks[i].execution_time;
+                tasks[i].next_release += tasks[i].period;
+            }
+        }
+
+        int scheduled = -1;
+        for (int i = 0; i < n; i++) {
+            if (tasks[i].remaining_time > 0) {
+                scheduled = i;
+                break;
+            }
+        }
+
+        if (scheduled != -1) {
+            tasks[scheduled].remaining_time--;
+            printf("Time %d: Task %d\n", t, tasks[scheduled].id);
+        } else {
+            printf("Time %d: Idle\n", t);
+        }
+    }
+}
+
+void earliest_deadline_first(Task tasks[], int n, int simulation_time) {
+    printf("\n--- Earliest Deadline First Scheduling ---\n");
+    for (int i = 0; i < n; i++) {
+        tasks[i].next_release = 0;
+        tasks[i].remaining_time = 0;
+        tasks[i].deadline = tasks[i].period;
+    }
+
+    for (int t = 0; t < simulation_time; t++) {
+        for (int i = 0; i < n; i++) {
+            if (t == tasks[i].next_release) {
+                tasks[i].remaining_time = tasks[i].execution_time;
+                tasks[i].deadline = t + tasks[i].period;
+                tasks[i].next_release += tasks[i].period;
+            }
+        }
+
+        sort_by_deadline(tasks, n);
+        int scheduled = -1;
+        for (int i = 0; i < n; i++) {
+            if (tasks[i].remaining_time > 0) {
+                scheduled = i;
+                break;
+            }
+        }
+
+        if (scheduled != -1) {
+            tasks[scheduled].remaining_time--;
+            printf("Time %d: Task %d\n", t, tasks[scheduled].id);
+        } else {
+            printf("Time %d: Idle\n", t);
+        }
+    }
+}
+
+void proportional_share(Task tasks[], int n, int simulation_time) {
+    printf("\n--- Proportional Share Scheduling (Simple Round-Robin) ---\n");
+
+    for (int i = 0; i < n; i++) {
+        tasks[i].remaining_time = (int)(tasks[i].weight * simulation_time);
+    }
+
+    int t = 0, i = 0;
+    while (t < simulation_time) {
+        if (tasks[i].remaining_time > 0) {
+            tasks[i].remaining_time--;
+            printf("Time %d: Task %d\n", t, tasks[i].id);
+            t++;
+        }
+        i = (i + 1) % n;
+    }
+}
+
+int main() {
+    Task tasks[MAX_TASKS];
+    int n, simulation_time;
+
+    printf("Enter number of tasks: ");
+    scanf("%d", &n);
+    printf("Enter simulation time: ");
+    scanf("%d", &simulation_time);
+
+    for (int i = 0; i < n; i++) {
+        tasks[i].id = i + 1;
+        printf("\nTask %d:\n", i + 1);
+        printf("Period: ");
+        scanf("%d", &tasks[i].period);
+        printf("Execution Time: ");
+        scanf("%d", &tasks[i].execution_time);
+        printf("Weight (0 to 1 for proportional share): ");
+        scanf("%f", &tasks[i].weight);
+    }
+
+    rate_monotonic(tasks, n, simulation_time);
+    earliest_deadline_first(tasks, n, simulation_time);
+    proportional_share(tasks, n, simulation_time);
+
+    return 0;
+}
