@@ -3,10 +3,11 @@
 
 #define MAX 10
 
-int alloc[MAX][MAX], request[MAX][MAX], avail[MAX], work[MAX];
+int alloc[MAX][MAX], req[MAX][MAX], avail[MAX];
 bool finish[MAX];
 int n, m;
 
+// Function to take input
 void input() {
     printf("Enter number of processes: ");
     scanf("%d", &n);
@@ -18,71 +19,64 @@ void input() {
         for (int j = 0; j < m; j++)
             scanf("%d", &alloc[i][j]);
 
-    printf("Enter Request Matrix (%d x %d):\n", n, m);  // This is the "need"
+    printf("Enter Request Matrix (%d x %d):\n", n, m); // Remaining need
     for (int i = 0; i < n; i++)
         for (int j = 0; j < m; j++)
-            scanf("%d", &request[i][j]);
+            scanf("%d", &req[i][j]);
 
-    printf("Enter Available Resources:\n");
+    printf("Enter Available Resources (%d):\n", m);
     for (int i = 0; i < m; i++)
         scanf("%d", &avail[i]);
 }
 
-void detectDeadlock() {
-    for (int i = 0; i < m; i++)
-        work[i] = avail[i];
-
-    for (int i = 0; i < n; i++) {
-        bool isZero = true;
-        for (int j = 0; j < m; j++) {
-            if (alloc[i][j] != 0) {
-                isZero = false;
-                break;
-            }
-        }
-        finish[i] = isZero;
+// Function to check if a process can finish
+bool canFinish(int i) {
+    for (int j = 0; j < m; j++) {
+        if (req[i][j] > avail[j])
+            return false;
     }
+    return true;
+}
 
-    bool changed;
+// Function to perform deadlock detection
+void detectDeadlock() {
+    for (int i = 0; i < n; i++)
+        finish[i] = false;
+
+    int changed;
     do {
-        changed = false;
+        changed = 0;
         for (int i = 0; i < n; i++) {
-            if (!finish[i]) {
-                bool canProceed = true;
-                for (int j = 0; j < m; j++) {
-                    if (request[i][j] > work[j]) {
-                        canProceed = false;
-                        break;
-                    }
-                }
-                if (canProceed) {
-                    for (int j = 0; j < m; j++)
-                        work[j] += alloc[i][j];
-                    finish[i] = true;
-                    changed = true;
-                }
+            if (!finish[i] && canFinish(i)) {
+                for (int j = 0; j < m; j++)
+                    avail[j] += alloc[i][j];
+                finish[i] = true;
+                changed = 1;
             }
         }
     } while (changed);
+}
 
-    // Check if any process is still unfinished
-    bool deadlock = false;
-    printf("\nProcesses in Deadlock: ");
+// Function to print result
+void printResult() {
+    int deadlock = 0;
+    printf("\nDeadlocked Processes:\n");
     for (int i = 0; i < n; i++) {
         if (!finish[i]) {
             printf("P%d ", i);
-            deadlock = true;
+            deadlock = 1;
         }
     }
 
     if (!deadlock)
-        printf("None. System is not in deadlock.\n");
+        printf("None. No deadlock detected.\n");
     else
-        printf("\nDeadlock detected.\n");
+        printf("\nDeadlock found!\n");
 }
 
 int main() {
     input();
     detectDeadlock();
+    printResult();
     return 0;
 }
